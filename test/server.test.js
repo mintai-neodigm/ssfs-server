@@ -1,7 +1,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { computeCompositeScore, serviceDefinition } = require("../src/server");
+const {
+  computeCompositeScore,
+  openApiDocument,
+  serviceDefinition,
+} = require("../src/server");
 
 test("service definition exposes expected inputs and outputs", () => {
   assert.equal(serviceDefinition.serviceName, "Lead Scoring Calculator");
@@ -12,6 +16,16 @@ test("service definition exposes expected inputs and outputs", () => {
   assert.deepEqual(
     serviceDefinition.outputs.map((output) => output.name),
     ["compositeScore"]
+  );
+});
+
+test("openapi document exposes compute score endpoint", () => {
+  assert.equal(openApiDocument.openapi, "3.0.3");
+  assert.ok(openApiDocument.paths["/openapi.json"].get);
+  assert.ok(openApiDocument.paths["/v1/computeScore"].post);
+  assert.equal(
+    openApiDocument.components.securitySchemes.apiKeyAuth.name,
+    "x-api-key",
   );
 });
 

@@ -21,6 +21,199 @@ const serviceDefinition = {
   ],
 };
 
+const openApiDocument = {
+  openapi: "3.0.3",
+  info: {
+    title: "Marketo SSFS Lead Scoring Calculator",
+    version: "1.0.0",
+    description:
+      "Calculates a weighted composite score from Marketo lead data.",
+  },
+  paths: {
+    "/openapi.json": {
+      get: {
+        summary: "Get OpenAPI document",
+        responses: {
+          200: {
+            description: "OpenAPI document for this service",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/health": {
+      get: {
+        summary: "Health check",
+        responses: {
+          200: {
+            description: "Server is healthy",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/HealthResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/getServiceDefinition": {
+      get: {
+        summary: "Get Marketo service definition",
+        responses: {
+          200: {
+            description: "Service definition for Marketo field mapping",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ServiceDefinition" },
+                example: serviceDefinition,
+              },
+            },
+          },
+        },
+      },
+    },
+    "/v1/computeScore": {
+      post: {
+        summary: "Compute weighted composite lead score",
+        security: [{ apiKeyAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ComputeScoreRequest" },
+              example: {
+                lead: {
+                  id: "12345",
+                  behavioralScore: 3,
+                  demographicScore: 20,
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Composite score calculation result",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ComputeScoreSuccess" },
+                example: {
+                  status: "success",
+                  data: {
+                    compositeScore: 20.9,
+                  },
+                },
+              },
+            },
+          },
+          400: {
+            description: "Invalid request payload",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          401: {
+            description: "Missing or invalid API key",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  components: {
+    securitySchemes: {
+      apiKeyAuth: {
+        type: "apiKey",
+        in: "header",
+        name: "x-api-key",
+      },
+    },
+    schemas: {
+      HealthResponse: {
+        type: "object",
+        required: ["status"],
+        properties: {
+          status: { type: "string", example: "ok" },
+        },
+      },
+      ServiceDefinition: {
+        type: "object",
+        required: ["serviceName", "description", "inputs", "outputs"],
+        properties: {
+          serviceName: { type: "string" },
+          description: { type: "string" },
+          inputs: {
+            type: "array",
+            items: { $ref: "#/components/schemas/FieldDefinition" },
+          },
+          outputs: {
+            type: "array",
+            items: { $ref: "#/components/schemas/FieldDefinition" },
+          },
+        },
+      },
+      FieldDefinition: {
+        type: "object",
+        required: ["name", "type", "label"],
+        properties: {
+          name: { type: "string" },
+          type: { type: "string", enum: ["number"] },
+          label: { type: "string" },
+        },
+      },
+      ComputeScoreRequest: {
+        type: "object",
+        required: ["lead"],
+        properties: {
+          lead: {
+            type: "object",
+            required: ["behavioralScore", "demographicScore"],
+            properties: {
+              id: { type: "string", example: "12345" },
+              behavioralScore: { type: "number", example: 3 },
+              demographicScore: { type: "number", example: 20 },
+            },
+          },
+        },
+      },
+      ComputeScoreSuccess: {
+        type: "object",
+        required: ["status", "data"],
+        properties: {
+          status: { type: "string", enum: ["success"] },
+          data: {
+            type: "object",
+            required: ["compositeScore"],
+            properties: {
+              compositeScore: { type: "number", example: 20.9 },
+            },
+          },
+        },
+      },
+      ErrorResponse: {
+        type: "object",
+        required: ["status", "message"],
+        properties: {
+          status: { type: "string", enum: ["error"] },
+          message: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
 function loadEnvFile() {
   const envPath = path.resolve(process.cwd(), ".env");
 
@@ -174,6 +367,11 @@ async function handleRequest(req, res) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/openapi.json") {
+    sendJson(res, 200, openApiDocument);
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/v1/computeScore") {
     // if (!isAuthorized(req)) {
     //   sendJson(res, 401, { status: "error", message: "Unauthorized request." });
@@ -220,5 +418,6 @@ if (require.main === module) {
 module.exports = {
   computeCompositeScore,
   createServer,
+  openApiDocument,
   serviceDefinition,
 };

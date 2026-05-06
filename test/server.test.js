@@ -54,6 +54,8 @@ test("openapi document exposes compute score endpoint", () => {
   assert.equal(openApiDocument.info["x-supportContact"], "support@example.com");
   assert.deepEqual(openApiDocument.servers, [{ url: "/" }]);
   assert.ok(openApiDocument.paths["/openapi.json"].get);
+  assert.ok(openApiDocument.paths["/status"].get);
+  assert.ok(openApiDocument.paths["/submitAsyncAction"].post);
   assert.ok(openApiDocument.paths["/v1/computeScore"].post);
   assert.equal(
     openApiDocument.components.securitySchemes.apiKeyAuth.name,
@@ -96,4 +98,39 @@ test("serves Marketo-required OpenAPI info fields over http", async (t) => {
   assert.equal(body.info["x-schemaVersion"], packageJson.version);
   assert.equal(body.info["x-supportContact"], "support@example.com");
   assert.deepEqual(body.servers, [{ url: "/" }]);
+});
+
+test("serves Marketo-required status endpoint over http", async (t) => {
+  const baseUrl = await withTestServer(t);
+  const response = await fetch(`${baseUrl}/status`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(body, { status: "ok" });
+});
+
+test("accepts Marketo submitAsyncAction requests over http", async (t) => {
+  const baseUrl = await withTestServer(t);
+  const response = await fetch(`${baseUrl}/submitAsyncAction`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      lead: {
+        id: "12345",
+        behavioralScore: 3,
+        demographicScore: 20,
+      },
+    }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(body, {
+    status: "accepted",
+    data: {
+      compositeScore: 20.9,
+    },
+  });
 });

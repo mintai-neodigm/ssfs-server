@@ -205,26 +205,28 @@ function computeCompositeScore(lead) {
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/FieldDefinition'
+ *     LeadScoreInput:
+ *       type: object
+ *       required:
+ *         - behavioralScore
+ *         - demographicScore
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "12345"
+ *         behavioralScore:
+ *           type: number
+ *           example: 3
+ *         demographicScore:
+ *           type: number
+ *           example: 20
  *     ComputeScoreRequest:
  *       type: object
  *       required:
  *         - lead
  *       properties:
  *         lead:
- *           type: object
- *           required:
- *             - behavioralScore
- *             - demographicScore
- *           properties:
- *             id:
- *               type: string
- *               example: "12345"
- *             behavioralScore:
- *               type: number
- *               example: 3
- *             demographicScore:
- *               type: number
- *               example: 20
+ *           $ref: '#/components/schemas/LeadScoreInput'
  *     ComputeScoreSuccess:
  *       type: object
  *       required:
@@ -255,6 +257,30 @@ function computeCompositeScore(lead) {
  *             - error
  *         message:
  *           type: string
+ *     SubmitAsyncActionRequest:
+ *       type: object
+ *       properties:
+ *         lead:
+ *           $ref: '#/components/schemas/LeadScoreInput'
+ *         leads:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/LeadScoreInput'
+ *     SubmitAsyncActionResponse:
+ *       type: object
+ *       required:
+ *         - status
+ *       properties:
+ *         status:
+ *           type: string
+ *           enum:
+ *             - accepted
+ *         data:
+ *           type: object
+ *           properties:
+ *             compositeScore:
+ *               type: number
+ *               example: 20.9
  */
 
 /**
@@ -281,9 +307,22 @@ function computeCompositeScore(lead) {
  *             schema:
  *               $ref: '#/components/schemas/HealthResponse'
  *
+ * /status:
+ *   get:
+ *     summary: Marketo service status check
+ *     operationId: getStatus
+ *     responses:
+ *       200:
+ *         description: Server is available
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ *
  * /getServiceDefinition:
  *   get:
  *     summary: Get Marketo service definition
+ *     operationId: getServiceDefinition
  *     responses:
  *       200:
  *         description: Service definition for Marketo field mapping
@@ -305,6 +344,47 @@ function computeCompositeScore(lead) {
  *                 - name: compositeScore
  *                   type: number
  *                   label: Composite Score
+ *
+ * /submitAsyncAction:
+ *   post:
+ *     summary: Submit Marketo async action
+ *     operationId: submitAsyncAction
+ *     security:
+ *       - apiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SubmitAsyncActionRequest'
+ *           example:
+ *             lead:
+ *               id: "12345"
+ *               behavioralScore: 3
+ *               demographicScore: 20
+ *     responses:
+ *       201:
+ *         description: Request accepted for processing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/SubmitAsyncActionResponse'
+ *             example:
+ *               status: accepted
+ *               data:
+ *                 compositeScore: 20.9
+ *       400:
+ *         description: Invalid request payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Missing or invalid API key
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *
  * /v1/computeScore:
  *   post:
@@ -355,6 +435,10 @@ function createApp() {
     res.json({ status: "ok" });
   });
 
+  app.get("/status", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
   app.get("/getServiceDefinition", (req, res) => {
     res.json(serviceDefinition);
   });
@@ -364,6 +448,28 @@ function createApp() {
   });
 
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+
+  app.post("/submitAsyncAction", (req, res) => {
+    // if (!isAuthorized(req)) {
+    //   res.status(401).json({ status: "error", message: "Unauthorized request." });
+    //   return;
+    // }
+
+    try {
+      const lead = Array.isArray(req.body.leads) ? req.body.leads[0] : req.body.lead;
+      const compositeScore = computeCompositeScore(lead);
+
+      res.status(201).json({
+        status: "accepted",
+        data: { compositeScore },
+      });
+    } catch (error) {
+      res.status(error.statusCode || 500).json({
+        status: "error",
+        message: error.message || "Unexpected server error.",
+      });
+    }
+  });
 
   app.post("/v1/computeScore", (req, res) => {
     // if (!isAuthorized(req)) {

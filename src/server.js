@@ -158,6 +158,37 @@ function computeCompositeScore(lead) {
   return behavioralScore * 0.3 + demographicScore;
 }
 
+function getSubmittedLead(body) {
+  return Array.isArray(body.leads) ? body.leads[0] : body.lead;
+}
+
+function sendErrorResponse(res, error) {
+  res.status(error.statusCode || 500).json({
+    status: "error",
+    message: error.message || "Unexpected server error.",
+  });
+}
+
+function createScoreHandler({ getLead, successStatusCode, successStatus }) {
+  return (req, res) => {
+    // if (!isAuthorized(req)) {
+    //   res.status(401).json({ status: "error", message: "Unauthorized request." });
+    //   return;
+    // }
+
+    try {
+      const compositeScore = computeCompositeScore(getLead(req.body));
+
+      res.status(successStatusCode).json({
+        status: successStatus,
+        data: { compositeScore },
+      });
+    } catch (error) {
+      sendErrorResponse(res, error);
+    }
+  };
+}
+
 /**
  * @openapi
  * components:
@@ -449,48 +480,17 @@ function createApp() {
 
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
-  app.post("/submitAsyncAction", (req, res) => {
-    // if (!isAuthorized(req)) {
-    //   res.status(401).json({ status: "error", message: "Unauthorized request." });
-    //   return;
-    // }
+  app.post("/submitAsyncAction", createScoreHandler({
+    getLead: getSubmittedLead,
+    successStatusCode: 201,
+    successStatus: "accepted",
+  }));
 
-    try {
-      const lead = Array.isArray(req.body.leads) ? req.body.leads[0] : req.body.lead;
-      const compositeScore = computeCompositeScore(lead);
-
-      res.status(201).json({
-        status: "accepted",
-        data: { compositeScore },
-      });
-    } catch (error) {
-      res.status(error.statusCode || 500).json({
-        status: "error",
-        message: error.message || "Unexpected server error.",
-      });
-    }
-  });
-
-  app.post("/v1/computeScore", (req, res) => {
-    // if (!isAuthorized(req)) {
-    //   res.status(401).json({ status: "error", message: "Unauthorized request." });
-    //   return;
-    // }
-
-    try {
-      const compositeScore = computeCompositeScore(req.body.lead);
-
-      res.json({
-        status: "success",
-        data: { compositeScore },
-      });
-    } catch (error) {
-      res.status(error.statusCode || 500).json({
-        status: "error",
-        message: error.message || "Unexpected server error.",
-      });
-    }
-  });
+  app.post("/v1/computeScore", createScoreHandler({
+    getLead: (body) => body.lead,
+    successStatusCode: 200,
+    successStatus: "success",
+  }));
 
   app.use((req, res) => {
     res.status(404).json({ status: "error", message: "Not found." });

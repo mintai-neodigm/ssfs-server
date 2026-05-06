@@ -10,3 +10,9 @@ services:
         value: 20
       - key: MARKETO_API_KEY
         sync: false
+      - key: MARKETO_PROVIDER_NAME
+        value: Marketo SSFS Lead Scoring Calculator
+      - key: MARKETO_SUPPORT_CONTACT
+        sync: false
+      - key: SERVER_URL
+        sync: false

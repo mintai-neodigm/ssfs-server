@@ -3,10 +3,30 @@ const test = require("node:test");
 const packageJson = require("../package.json");
 
 const {
+  createApp,
   computeCompositeScore,
   openApiDocument,
   serviceDefinition,
 } = require("../src/server");
+
+async function withTestServer(t) {
+  const server = createApp().listen(0);
+
+  await new Promise((resolve) => server.once("listening", resolve));
+  t.after(() => new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  }));
+
+  const { port } = server.address();
+  return `http://127.0.0.1:${port}`;
+}
 
 test("service definition exposes expected inputs and outputs", () => {
   assert.equal(serviceDefinition.serviceName, "Lead Scoring Calculator");
@@ -64,4 +84,16 @@ test("rejects non-finite score values", () => {
     () => computeCompositeScore({ behavioralScore: "abc", demographicScore: 20 }),
     /behavioralScore must be a finite number/
   );
+});
+
+test("serves Marketo-required OpenAPI info fields over http", async (t) => {
+  const baseUrl = await withTestServer(t);
+  const response = await fetch(`${baseUrl}/openapi.json`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.info["x-providerName"], "Marketo SSFS Lead Scoring Calculator");
+  assert.equal(body.info["x-schemaVersion"], packageJson.version);
+  assert.equal(body.info["x-supportContact"], "support@example.com");
+  assert.deepEqual(body.servers, [{ url: "/" }]);
 });

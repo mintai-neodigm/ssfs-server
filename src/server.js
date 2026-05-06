@@ -4,11 +4,17 @@ const path = require("node:path");
 const express = require("express");
 const swaggerJSDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
+const packageJson = require("../package.json");
 
 loadEnvFile();
 
 const PORT = Number.parseInt(process.env.PORT || "3000", 10);
 const API_KEY = process.env.MARKETO_API_KEY || "";
+const PROVIDER_NAME =
+  process.env.MARKETO_PROVIDER_NAME || "Marketo SSFS Lead Scoring Calculator";
+const SUPPORT_CONTACT =
+  process.env.MARKETO_SUPPORT_CONTACT || "support@example.com";
+const SERVER_URL = process.env.SERVER_URL || "/";
 
 const serviceDefinition = {
   serviceName: "Lead Scoring Calculator",
@@ -30,13 +36,20 @@ function createOpenApiDocument() {
     definition: {
       openapi: "3.0.3",
       info: {
-        title: "Marketo SSFS Lead Scoring Calculator",
-        version: "1.0.0",
+        title: PROVIDER_NAME,
+        version: packageJson.version,
         description:
           "Calculates a weighted composite score from Marketo lead data.",
-        "x-providerName": "Marketo SSFS Lead Scoring Calculator",
+        "x-providerName": PROVIDER_NAME,
+        "x-schemaVersion": packageJson.version,
+        "x-supportContact": SUPPORT_CONTACT,
       },
-      "x-providerName": "Marketo SSFS Lead Scoring Calculator",
+      servers: [
+        {
+          url: SERVER_URL,
+        },
+      ],
+      "x-providerName": PROVIDER_NAME,
       security: [
         {
           apiKeyAuth: [],

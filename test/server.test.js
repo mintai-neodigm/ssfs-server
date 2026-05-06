@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const packageJson = require("../package.json");
 
 const {
   computeCompositeScore,
@@ -29,6 +30,9 @@ test("openapi document exposes compute score endpoint", () => {
     openApiDocument.info["x-providerName"],
     "Marketo SSFS Lead Scoring Calculator",
   );
+  assert.equal(openApiDocument.info["x-schemaVersion"], packageJson.version);
+  assert.equal(openApiDocument.info["x-supportContact"], "support@example.com");
+  assert.deepEqual(openApiDocument.servers, [{ url: "/" }]);
   assert.ok(openApiDocument.paths["/openapi.json"].get);
   assert.ok(openApiDocument.paths["/v1/computeScore"].post);
   assert.equal(

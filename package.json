@@ -1,0 +1,20 @@
+{
+  "name": "marketo-ssfs-server",
+  "version": "1.0.0",
+  "description": "Marketo SSFS test backend for weighted composite lead scoring.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node test/server.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "marketo",
+    "ssfs",
+    "lead-scoring"
+  ],
+  "license": "UNLICENSED"
+}

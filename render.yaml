@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: marketo-ssfs-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: MARKETO_API_KEY
+        sync: false

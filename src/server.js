@@ -35,6 +35,7 @@ function createOpenApiDocument() {
         description:
           "Calculates a weighted composite score from Marketo lead data.",
       },
+      "x-providerName": "Marketo SSFS Lead Scoring Calculator",
       security: [
         {
           apiKeyAuth: [],

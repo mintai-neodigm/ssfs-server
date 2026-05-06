@@ -1,7 +1,9 @@
-const http = require("node:http");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+const express = require("express");
+const swaggerJSDoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
 
 loadEnvFile();
 
@@ -21,198 +23,36 @@ const serviceDefinition = {
   ],
 };
 
-const openApiDocument = {
-  openapi: "3.0.3",
-  info: {
-    title: "Marketo SSFS Lead Scoring Calculator",
-    version: "1.0.0",
-    description:
-      "Calculates a weighted composite score from Marketo lead data.",
-  },
-  paths: {
-    "/openapi.json": {
-      get: {
-        summary: "Get OpenAPI document",
-        responses: {
-          200: {
-            description: "OpenAPI document for this service",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                },
-              },
-            },
+const openApiDocument = createOpenApiDocument();
+
+function createOpenApiDocument() {
+  return swaggerJSDoc({
+    definition: {
+      openapi: "3.0.3",
+      info: {
+        title: "Marketo SSFS Lead Scoring Calculator",
+        version: "1.0.0",
+        description:
+          "Calculates a weighted composite score from Marketo lead data.",
+      },
+      security: [
+        {
+          apiKeyAuth: [],
+        },
+      ],
+      components: {
+        securitySchemes: {
+          apiKeyAuth: {
+            type: "apiKey",
+            in: "header",
+            name: "x-api-key",
           },
         },
       },
     },
-    "/health": {
-      get: {
-        summary: "Health check",
-        responses: {
-          200: {
-            description: "Server is healthy",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/HealthResponse" },
-              },
-            },
-          },
-        },
-      },
-    },
-    "/getServiceDefinition": {
-      get: {
-        summary: "Get Marketo service definition",
-        responses: {
-          200: {
-            description: "Service definition for Marketo field mapping",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ServiceDefinition" },
-                example: serviceDefinition,
-              },
-            },
-          },
-        },
-      },
-    },
-    "/v1/computeScore": {
-      post: {
-        summary: "Compute weighted composite lead score",
-        security: [{ apiKeyAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/ComputeScoreRequest" },
-              example: {
-                lead: {
-                  id: "12345",
-                  behavioralScore: 3,
-                  demographicScore: 20,
-                },
-              },
-            },
-          },
-        },
-        responses: {
-          200: {
-            description: "Composite score calculation result",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ComputeScoreSuccess" },
-                example: {
-                  status: "success",
-                  data: {
-                    compositeScore: 20.9,
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            description: "Invalid request payload",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-          401: {
-            description: "Missing or invalid API key",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-        },
-      },
-    },
-  },
-  components: {
-    securitySchemes: {
-      apiKeyAuth: {
-        type: "apiKey",
-        in: "header",
-        name: "x-api-key",
-      },
-    },
-    schemas: {
-      HealthResponse: {
-        type: "object",
-        required: ["status"],
-        properties: {
-          status: { type: "string", example: "ok" },
-        },
-      },
-      ServiceDefinition: {
-        type: "object",
-        required: ["serviceName", "description", "inputs", "outputs"],
-        properties: {
-          serviceName: { type: "string" },
-          description: { type: "string" },
-          inputs: {
-            type: "array",
-            items: { $ref: "#/components/schemas/FieldDefinition" },
-          },
-          outputs: {
-            type: "array",
-            items: { $ref: "#/components/schemas/FieldDefinition" },
-          },
-        },
-      },
-      FieldDefinition: {
-        type: "object",
-        required: ["name", "type", "label"],
-        properties: {
-          name: { type: "string" },
-          type: { type: "string", enum: ["number"] },
-          label: { type: "string" },
-        },
-      },
-      ComputeScoreRequest: {
-        type: "object",
-        required: ["lead"],
-        properties: {
-          lead: {
-            type: "object",
-            required: ["behavioralScore", "demographicScore"],
-            properties: {
-              id: { type: "string", example: "12345" },
-              behavioralScore: { type: "number", example: 3 },
-              demographicScore: { type: "number", example: 20 },
-            },
-          },
-        },
-      },
-      ComputeScoreSuccess: {
-        type: "object",
-        required: ["status", "data"],
-        properties: {
-          status: { type: "string", enum: ["success"] },
-          data: {
-            type: "object",
-            required: ["compositeScore"],
-            properties: {
-              compositeScore: { type: "number", example: 20.9 },
-            },
-          },
-        },
-      },
-      ErrorResponse: {
-        type: "object",
-        required: ["status", "message"],
-        properties: {
-          status: { type: "string", enum: ["error"] },
-          message: { type: "string" },
-        },
-      },
-    },
-  },
-};
+    apis: [path.join(__dirname, "server.js")],
+  });
+}
 
 function loadEnvFile() {
   const envPath = path.resolve(process.cwd(), ".env");
@@ -253,63 +93,12 @@ function loadEnvFile() {
   }
 }
 
-function sendJson(res, statusCode, payload) {
-  const body = JSON.stringify(payload);
-
-  res.writeHead(statusCode, {
-    "content-type": "application/json; charset=utf-8",
-    "content-length": Buffer.byteLength(body),
-  });
-  res.end(body);
-}
-
-function parseJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-
-    req.setEncoding("utf8");
-    req.on("data", (chunk) => {
-      body += chunk;
-
-      if (body.length > 1024 * 1024) {
-        reject(
-          Object.assign(new Error("Request body is too large."), {
-            statusCode: 413,
-          }),
-        );
-        req.destroy();
-      }
-    });
-    req.on("end", () => {
-      if (!body.trim()) {
-        reject(
-          Object.assign(new Error("Request body is required."), {
-            statusCode: 400,
-          }),
-        );
-        return;
-      }
-
-      try {
-        resolve(JSON.parse(body));
-      } catch {
-        reject(
-          Object.assign(new Error("Request body must be valid JSON."), {
-            statusCode: 400,
-          }),
-        );
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
 function isAuthorized(req) {
   if (!API_KEY) {
     return false;
   }
 
-  const headerKey = req.headers["x-api-key"];
+  const headerKey = req.get("x-api-key");
   if (typeof headerKey !== "string") {
     return false;
   }
@@ -354,68 +143,269 @@ function computeCompositeScore(lead) {
   return behavioralScore * 0.3 + demographicScore;
 }
 
-async function handleRequest(req, res) {
-  const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+/**
+ * @openapi
+ * components:
+ *   schemas:
+ *     HealthResponse:
+ *       type: object
+ *       required:
+ *         - status
+ *       properties:
+ *         status:
+ *           type: string
+ *           example: ok
+ *     FieldDefinition:
+ *       type: object
+ *       required:
+ *         - name
+ *         - type
+ *         - label
+ *       properties:
+ *         name:
+ *           type: string
+ *         type:
+ *           type: string
+ *           enum:
+ *             - number
+ *         label:
+ *           type: string
+ *     ServiceDefinition:
+ *       type: object
+ *       required:
+ *         - serviceName
+ *         - description
+ *         - inputs
+ *         - outputs
+ *       properties:
+ *         serviceName:
+ *           type: string
+ *         description:
+ *           type: string
+ *         inputs:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/FieldDefinition'
+ *         outputs:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/FieldDefinition'
+ *     ComputeScoreRequest:
+ *       type: object
+ *       required:
+ *         - lead
+ *       properties:
+ *         lead:
+ *           type: object
+ *           required:
+ *             - behavioralScore
+ *             - demographicScore
+ *           properties:
+ *             id:
+ *               type: string
+ *               example: "12345"
+ *             behavioralScore:
+ *               type: number
+ *               example: 3
+ *             demographicScore:
+ *               type: number
+ *               example: 20
+ *     ComputeScoreSuccess:
+ *       type: object
+ *       required:
+ *         - status
+ *         - data
+ *       properties:
+ *         status:
+ *           type: string
+ *           enum:
+ *             - success
+ *         data:
+ *           type: object
+ *           required:
+ *             - compositeScore
+ *           properties:
+ *             compositeScore:
+ *               type: number
+ *               example: 20.9
+ *     ErrorResponse:
+ *       type: object
+ *       required:
+ *         - status
+ *         - message
+ *       properties:
+ *         status:
+ *           type: string
+ *           enum:
+ *             - error
+ *         message:
+ *           type: string
+ */
 
-  if (req.method === "GET" && url.pathname === "/health") {
-    sendJson(res, 200, { status: "ok" });
-    return;
-  }
+/**
+ * @openapi
+ * /openapi.json:
+ *   get:
+ *     summary: Get OpenAPI document
+ *     responses:
+ *       200:
+ *         description: OpenAPI document for this service
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     responses:
+ *       200:
+ *         description: Server is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/HealthResponse'
+ *
+ * /getServiceDefinition:
+ *   get:
+ *     summary: Get Marketo service definition
+ *     responses:
+ *       200:
+ *         description: Service definition for Marketo field mapping
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ServiceDefinition'
+ *             example:
+ *               serviceName: Lead Scoring Calculator
+ *               description: Calculates composite score based on behavioral and demographic data.
+ *               inputs:
+ *                 - name: behavioralScore
+ *                   type: number
+ *                   label: Behavioral Score
+ *                 - name: demographicScore
+ *                   type: number
+ *                   label: Demographic Score
+ *               outputs:
+ *                 - name: compositeScore
+ *                   type: number
+ *                   label: Composite Score
+ *
+ * /v1/computeScore:
+ *   post:
+ *     summary: Compute weighted composite lead score
+ *     security:
+ *       - apiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ComputeScoreRequest'
+ *           example:
+ *             lead:
+ *               id: "12345"
+ *               behavioralScore: 3
+ *               demographicScore: 20
+ *     responses:
+ *       200:
+ *         description: Composite score calculation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ComputeScoreSuccess'
+ *             example:
+ *               status: success
+ *               data:
+ *                 compositeScore: 20.9
+ *       400:
+ *         description: Invalid request payload
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Missing or invalid API key
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+function createApp() {
+  const app = express();
 
-  if (req.method === "GET" && url.pathname === "/getServiceDefinition") {
-    sendJson(res, 200, serviceDefinition);
-    return;
-  }
+  app.use(express.json({ limit: "1mb" }));
 
-  if (req.method === "GET" && url.pathname === "/openapi.json") {
-    sendJson(res, 200, openApiDocument);
-    return;
-  }
+  app.get("/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
 
-  if (req.method === "POST" && url.pathname === "/v1/computeScore") {
+  app.get("/getServiceDefinition", (req, res) => {
+    res.json(serviceDefinition);
+  });
+
+  app.get("/openapi.json", (req, res) => {
+    res.json(openApiDocument);
+  });
+
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+
+  app.post("/v1/computeScore", (req, res) => {
     // if (!isAuthorized(req)) {
-    //   sendJson(res, 401, { status: "error", message: "Unauthorized request." });
+    //   res.status(401).json({ status: "error", message: "Unauthorized request." });
     //   return;
     // }
 
     try {
-      const payload = await parseJsonBody(req);
-      const compositeScore = computeCompositeScore(payload.lead);
+      const compositeScore = computeCompositeScore(req.body.lead);
 
-      sendJson(res, 200, {
+      res.json({
         status: "success",
         data: { compositeScore },
       });
     } catch (error) {
-      sendJson(res, error.statusCode || 500, {
+      res.status(error.statusCode || 500).json({
         status: "error",
         message: error.message || "Unexpected server error.",
       });
     }
-    return;
-  }
+  });
 
-  sendJson(res, 404, { status: "error", message: "Not found." });
+  app.use((req, res) => {
+    res.status(404).json({ status: "error", message: "Not found." });
+  });
+
+  app.use((error, req, res, next) => {
+    if (error instanceof SyntaxError && "body" in error) {
+      res.status(400).json({
+        status: "error",
+        message: "Request body must be valid JSON.",
+      });
+      return;
+    }
+
+    res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message || "Unexpected server error.",
+    });
+  });
+
+  return app;
 }
 
 function createServer() {
-  return http.createServer((req, res) => {
-    handleRequest(req, res).catch((error) => {
-      sendJson(res, 500, {
-        status: "error",
-        message: error.message || "Unexpected server error.",
-      });
-    });
-  });
+  return createApp();
 }
 
 if (require.main === module) {
-  createServer().listen(PORT, () => {
+  createApp().listen(PORT, () => {
     console.log(`Marketo SSFS server listening on port ${PORT}`);
+    console.log(`Swagger UI available at http://localhost:${PORT}/api-docs`);
   });
 }
 
 module.exports = {
+  createApp,
   computeCompositeScore,
   createServer,
   openApiDocument,

@@ -25,6 +25,10 @@ test("openapi document exposes compute score endpoint", () => {
     openApiDocument["x-providerName"],
     "Marketo SSFS Lead Scoring Calculator",
   );
+  assert.equal(
+    openApiDocument.info["x-providerName"],
+    "Marketo SSFS Lead Scoring Calculator",
+  );
   assert.ok(openApiDocument.paths["/openapi.json"].get);
   assert.ok(openApiDocument.paths["/v1/computeScore"].post);
   assert.equal(

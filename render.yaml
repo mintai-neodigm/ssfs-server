@@ -14,5 +14,7 @@ services:
         value: Marketo SSFS Lead Scoring Calculator
       - key: MARKETO_SUPPORT_CONTACT
         sync: false
+      - key: MARKETO_MUNCHKIN_ID
+        sync: false
       - key: SERVER_URL
         sync: false

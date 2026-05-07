@@ -11,6 +11,11 @@ const {
 } = require("../src/server");
 
 const expectedServerUrl = process.env.SERVER_URL || "/";
+const expectedEnvMunchkinId = process.env.MARKETO_MUNCHKIN_ID || "";
+const expectedProviderName =
+  process.env.MARKETO_PROVIDER_NAME || "Marketo SSFS Lead Scoring Calculator";
+const expectedSupportContact =
+  process.env.MARKETO_SUPPORT_CONTACT || "support@example.com";
 
 async function withTestServer(t) {
   const server = createApp().listen(0);
@@ -129,10 +134,10 @@ test("openapi document exposes compute score endpoint", () => {
   assert.equal(openApiDocument.openapi, "3.0.3");
   assert.equal(
     openApiDocument.info["x-providerName"],
-    "Marketo SSFS Lead Scoring Calculator",
+    expectedProviderName,
   );
   assert.equal(openApiDocument.info["x-schemaVersion"], packageJson.version);
-  assert.equal(openApiDocument.info["x-supportContact"], "support@example.com");
+  assert.equal(openApiDocument.info["x-supportContact"], expectedSupportContact);
   assert.deepEqual(openApiDocument.servers, [{ url: expectedServerUrl }]);
   assert.ok(openApiDocument.paths["/openapi.json"].get);
   assert.ok(openApiDocument.paths["/status"].get);
@@ -189,9 +194,9 @@ test("serves Marketo-required OpenAPI info fields over http", async (t) => {
   const body = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(body.info["x-providerName"], "Marketo SSFS Lead Scoring Calculator");
+  assert.equal(body.info["x-providerName"], expectedProviderName);
   assert.equal(body.info["x-schemaVersion"], packageJson.version);
-  assert.equal(body.info["x-supportContact"], "support@example.com");
+  assert.equal(body.info["x-supportContact"], expectedSupportContact);
   assert.deepEqual(body.servers, [{ url: expectedServerUrl }]);
 });
 
@@ -255,7 +260,7 @@ test("accepts Marketo submitAsyncAction requests over http", async (t) => {
   assert.equal(callbackRequest.headers["x-callback-token"], "test-callback-token");
   assert.ok(callbackRequest.headers["x-request-id"]);
   assert.deepEqual(callbackRequest.payload, {
-    munchkinId: "123-ABC-456",
+    munchkinId: expectedEnvMunchkinId || "123-ABC-456",
     objectData: [
       {
         leadData: {
@@ -309,7 +314,7 @@ test("accepts Marketo leadContext payloads over http", async (t) => {
 
   const callbackRequest = await callback;
   assert.deepEqual(callbackRequest.payload, {
-    munchkinId: "",
+    munchkinId: expectedEnvMunchkinId,
     objectData: [
       {
         leadData: {
@@ -373,7 +378,7 @@ test("accepts Marketo objectData payloads over http", async (t) => {
   assert.equal(callbackRequest.headers["x-api-key"], "object-data-key");
   assert.ok(callbackRequest.headers["x-request-id"]);
   assert.deepEqual(callbackRequest.payload, {
-    munchkinId: "734-MIC-484",
+    munchkinId: expectedEnvMunchkinId || "734-MIC-484",
     objectData: [
       {
         leadData: {
@@ -427,5 +432,5 @@ test("extracts munchkinId from Marketo callback token", async (t) => {
   assert.equal(response.status, 201);
 
   const callbackRequest = await callback;
-  assert.equal(callbackRequest.payload.munchkinId, "734-MIC-484");
+  assert.equal(callbackRequest.payload.munchkinId, expectedEnvMunchkinId || "734-MIC-484");
 });

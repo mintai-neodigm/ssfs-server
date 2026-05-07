@@ -85,19 +85,18 @@ const serviceDefinition = {
     ],
     attributes: [
       {
-        apiName: "success",
+        apiName: "calculationStatus",
         i18n: {
           en_US: {
-            displayName: "Success",
-            description:
-              "Whether the score calculation completed successfully.",
+            displayName: "Calculation Status",
+            description: "Status of the score calculation.",
           },
           ko_KR: {
-            displayName: "성공 여부",
-            description: "점수 계산이 성공적으로 완료되었는지 여부입니다.",
+            displayName: "계산 상태",
+            description: "점수 계산 처리 상태입니다.",
           },
         },
-        dataType: "boolean",
+        dataType: "string",
       },
       {
         apiName: "compositeScore",
@@ -470,9 +469,9 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *         activityData:
  *           type: object
  *           properties:
- *             success:
- *               type: boolean
- *               example: true
+ *             calculationStatus:
+ *               type: string
+ *               example: completed
  *             compositeScore:
  *               type: number
  *               example: 20.9
@@ -603,7 +602,7 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *                       id: "12345"
  *                       compositeScore: 20.9
  *                     activityData:
- *                       success: true
+ *                       calculationStatus: completed
  *                       compositeScore: 20.9
  *             responses:
  *               200:

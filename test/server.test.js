@@ -50,11 +50,11 @@ test("service definition exposes expected inputs and outputs", () => {
   );
   assert.deepEqual(
     serviceDefinition.callbackPayloadDef.attributes.map((attribute) => attribute.apiName),
-    ["success", "compositeScore"],
+    ["calculationStatus", "compositeScore"],
   );
   assert.equal(
     serviceDefinition.callbackPayloadDef.attributes[0].i18n.ko_KR.displayName,
-    "성공 여부",
+    "계산 상태",
   );
   assert.equal(
     serviceDefinition.invocationPayloadDef.flowAttributes[0].i18n.ko_KR.displayName,

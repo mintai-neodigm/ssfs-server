@@ -17,9 +17,85 @@ const SUPPORT_CONTACT =
 const SERVER_URL = process.env.SERVER_URL || "/";
 
 const serviceDefinition = {
+  apiName: "leadScoringCalculator",
   serviceName: "Lead Scoring Calculator",
+  i18n: {
+    en_US: {
+      name: "Lead Scoring Calculator",
+      description:
+        "Calculates composite score based on behavioral and demographic data.",
+    },
+    ko_KR: {
+      name: "리드 스코어 계산기",
+      description:
+        "행동 점수와 인구통계 점수를 기반으로 복합 점수를 계산합니다.",
+    },
+  },
   description:
     "Calculates composite score based on behavioral and demographic data.",
+  primaryAttribute: "scoringModel",
+  supportedEntityType: "lead",
+  enableSplitPaths: false,
+  timeout: 10,
+  invocationPayloadDef: {
+    flowAttributes: [
+      {
+        apiName: "scoringModel",
+        dataType: "string",
+        required: false,
+        i18n: {
+          en_US: {
+            displayName: "Scoring Model",
+            description: "Scoring model label shown in Marketo activity data.",
+          },
+          ko_KR: {
+            displayName: "스코어링 모델",
+            description:
+              "Marketo 활동 데이터에 표시할 스코어링 모델 라벨입니다.",
+          },
+        },
+      },
+    ],
+    fields: [
+      {
+        serviceAttribute: "behavioralScore",
+        dataType: "float",
+        required: true,
+        description: "Behavioral score used with a 0.3 weighting.",
+      },
+      {
+        serviceAttribute: "demographicScore",
+        dataType: "float",
+        required: true,
+        description:
+          "Demographic score added to the weighted behavioral score.",
+      },
+    ],
+    journeyContext: false,
+    subscriptionContext: false,
+  },
+  callbackPayloadDef: {
+    fields: [
+      {
+        serviceAttribute: "compositeScore",
+        dataType: "float",
+        required: false,
+        description: "Composite score calculated by the scoring service.",
+      },
+    ],
+    attributes: [
+      {
+        serviceAttribute: "success",
+        dataType: "boolean",
+        description: "Whether the score calculation completed successfully.",
+      },
+      {
+        serviceAttribute: "compositeScore",
+        dataType: "float",
+        description: "Composite score included in activity data.",
+      },
+    ],
+  },
   inputs: [
     { name: "behavioralScore", type: "number", label: "Behavioral Score" },
     { name: "demographicScore", type: "number", label: "Demographic Score" },
@@ -227,11 +303,36 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *     serviceDefinition:
  *       type: object
  *       required:
+ *         - apiName
+ *         - i18n
  *         - serviceName
  *         - description
+ *         - primaryAttribute
+ *         - supportedEntityType
+ *         - enableSplitPaths
+ *         - invocationPayloadDef
+ *         - callbackPayloadDef
  *         - inputs
  *         - outputs
  *       properties:
+ *         apiName:
+ *           type: string
+ *         i18n:
+ *           type: object
+ *         primaryAttribute:
+ *           type: string
+ *         supportedEntityType:
+ *           type: string
+ *           enum:
+ *             - lead
+ *         enableSplitPaths:
+ *           type: boolean
+ *         timeout:
+ *           type: integer
+ *         invocationPayloadDef:
+ *           type: object
+ *         callbackPayloadDef:
+ *           type: object
  *         serviceName:
  *           type: string
  *         description:

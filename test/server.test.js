@@ -31,7 +31,27 @@ async function withTestServer(t) {
 }
 
 test("service definition exposes expected inputs and outputs", () => {
+  assert.equal(serviceDefinition.apiName, "leadScoringCalculator");
   assert.equal(serviceDefinition.serviceName, "Lead Scoring Calculator");
+  assert.equal(serviceDefinition.i18n.en_US.name, "Lead Scoring Calculator");
+  assert.equal(serviceDefinition.i18n.ko_KR.name, "리드 스코어 계산기");
+  assert.equal(serviceDefinition.primaryAttribute, "scoringModel");
+  assert.equal(serviceDefinition.supportedEntityType, "lead");
+  assert.equal(serviceDefinition.enableSplitPaths, false);
+  assert.ok(serviceDefinition.invocationPayloadDef);
+  assert.ok(serviceDefinition.callbackPayloadDef);
+  assert.deepEqual(
+    serviceDefinition.invocationPayloadDef.fields.map((field) => field.serviceAttribute),
+    ["behavioralScore", "demographicScore"],
+  );
+  assert.deepEqual(
+    serviceDefinition.callbackPayloadDef.fields.map((field) => field.serviceAttribute),
+    ["compositeScore"],
+  );
+  assert.equal(
+    serviceDefinition.invocationPayloadDef.flowAttributes[0].i18n.ko_KR.displayName,
+    "스코어링 모델",
+  );
   assert.deepEqual(
     serviceDefinition.inputs.map((input) => input.name),
     ["behavioralScore", "demographicScore"]
@@ -114,6 +134,22 @@ test("serves Marketo-required OpenAPI info fields over http", async (t) => {
   assert.equal(body.info["x-schemaVersion"], packageJson.version);
   assert.equal(body.info["x-supportContact"], "support@example.com");
   assert.deepEqual(body.servers, [{ url: expectedServerUrl }]);
+});
+
+test("serves Marketo-required service definition fields over http", async (t) => {
+  const baseUrl = await withTestServer(t);
+  const response = await fetch(`${baseUrl}/getServiceDefinition`);
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.apiName, "leadScoringCalculator");
+  assert.equal(body.i18n.en_US.name, "Lead Scoring Calculator");
+  assert.equal(body.i18n.ko_KR.name, "리드 스코어 계산기");
+  assert.equal(body.primaryAttribute, "scoringModel");
+  assert.equal(body.supportedEntityType, "lead");
+  assert.equal(body.enableSplitPaths, false);
+  assert.ok(body.invocationPayloadDef);
+  assert.ok(body.callbackPayloadDef);
 });
 
 test("serves Marketo-required status endpoint over http", async (t) => {

@@ -40,24 +40,24 @@ const serviceDefinition = {
   enableSplitPaths: false,
   timeout: 10,
   invocationPayloadDef: {
-    flowAttributes: [
-      {
-        apiName: "scoringModel",
-        dataType: "string",
-        required: false,
-        i18n: {
-          en_US: {
-            displayName: "Scoring Model",
-            description: "Scoring model label shown in Marketo activity data.",
-          },
-          ko_KR: {
-            displayName: "스코어링 모델",
-            description:
-              "Marketo 활동 데이터에 표시할 스코어링 모델 라벨입니다.",
-          },
-        },
-      },
-    ],
+    // flowAttributes: [
+    //   {
+    //     apiName: "scoringModel",
+    //     dataType: "string",
+    //     required: false,
+    //     i18n: {
+    //       en_US: {
+    //         displayName: "Scoring Model",
+    //         description: "Scoring model label shown in Marketo activity data.",
+    //       },
+    //       ko_KR: {
+    //         displayName: "스코어링 모델",
+    //         description:
+    //           "Marketo 활동 데이터에 표시할 스코어링 모델 라벨입니다.",
+    //       },
+    //     },
+    //   },
+    // ],
     fields: [
       {
         serviceAttribute: "behavioralScore",

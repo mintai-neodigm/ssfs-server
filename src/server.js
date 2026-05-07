@@ -297,6 +297,20 @@ function getSubmittedLeadObjectData(body) {
   );
 }
 
+function getSubmittedLeadObjectDataList(body) {
+  if (!Array.isArray(body.objectData)) {
+    return [];
+  }
+
+  return body.objectData.filter(
+    (item) =>
+      item &&
+      item.objectType === "lead" &&
+      item.objectContext &&
+      typeof item.objectContext === "object",
+  );
+}
+
 function getSubmittedFlowAttributes(body) {
   const leadObjectData = getSubmittedLeadObjectData(body);
 
@@ -308,6 +322,12 @@ function getSubmittedFlowAttributes(body) {
       leadObjectData?.flowStepContext?.scoringModel ||
       body.scoringModel ||
       "",
+  };
+}
+
+function getFlowAttributesFromObjectData(item) {
+  return {
+    scoringModel: item?.flowStepContext?.scoringModel || "",
   };
 }
 
@@ -394,24 +414,60 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
   };
 }
 
-function buildCallbackPayload(lead, compositeScore, flowAttributes = {}) {
+function buildCallbackObject(lead, flowAttributes = {}) {
+  const compositeScore = computeCompositeScore(lead);
+
   return {
-    objectData: [
-      {
-        leadData: {
-          id: String(lead.id || ""),
-          compositeScore,
-        },
-        activityData: {
-          success: true,
-          errorCode: null,
-          reason: null,
-          calculationStatus: "completed",
-          scoringModel: flowAttributes.scoringModel || "",
-          compositeScore,
-        },
-      },
-    ],
+    leadData: {
+      id: String(lead.id || ""),
+      compositeScore,
+    },
+    activityData: {
+      success: true,
+      errorCode: null,
+      reason: null,
+      calculationStatus: "completed",
+      scoringModel: flowAttributes.scoringModel || "",
+      compositeScore,
+    },
+  };
+}
+
+function buildCallbackPayloadFromLeadObjects(leadObjects) {
+  return {
+    objectData: leadObjects.map(({ lead, flowAttributes }) =>
+      buildCallbackObject(lead, flowAttributes),
+    ),
+  };
+}
+
+function getSubmittedLeadObjects(body) {
+  const objectDataList = getSubmittedLeadObjectDataList(body);
+
+  if (objectDataList.length) {
+    return objectDataList.map((item) => ({
+      lead: item.objectContext,
+      flowAttributes: getFlowAttributesFromObjectData(item),
+    }));
+  }
+
+  const lead = getSubmittedLead(body);
+  if (!lead || typeof lead !== "object" || Array.isArray(lead)) {
+    return [];
+  }
+
+  return [
+    {
+      lead,
+      flowAttributes: getSubmittedFlowAttributes(body),
+    },
+  ];
+}
+
+function getFirstLeadObject(leadObjects) {
+  return leadObjects[0] || {
+    lead: {},
+    flowAttributes: {},
   };
 }
 
@@ -419,10 +475,10 @@ async function postAsyncActionCallback({
   callbackUrl,
   token,
   apiCallBackKey,
-  lead,
+  payload,
+  leadId,
   flowAttributes,
 }) {
-  const compositeScore = computeCompositeScore(lead);
   const headers = {
     "content-type": "application/json",
   };
@@ -435,7 +491,7 @@ async function postAsyncActionCallback({
     headers["X-Api-Key"] = apiCallBackKey;
   }
 
-  headers["X-Request-Id"] = `${getLeadId(lead)}-${Date.now()}`;
+  headers["X-Request-Id"] = `${leadId}-${Date.now()}`;
 
   if (process.env.ADOBE_ACCESS_TOKEN) {
     headers.Authorization = `Bearer ${process.env.ADOBE_ACCESS_TOKEN}`;
@@ -447,26 +503,27 @@ async function postAsyncActionCallback({
 
   logDebug("Posting async action callback.", {
     callbackUrl,
-    leadId: getLeadId(lead),
+    leadId,
     flowAttributes,
-    compositeScore,
+    objectCount: payload.objectData.length,
   });
 
   const response = await fetch(callbackUrl, {
     method: "POST",
     headers,
-    body: JSON.stringify(
-      buildCallbackPayload(lead, compositeScore, flowAttributes),
-    ),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    throw new Error(`Callback request failed with status ${response.status}.`);
+    const responseBody = await response.text();
+    throw new Error(
+      `Callback request failed with status ${response.status}. Body: ${responseBody}`,
+    );
   }
 
   logDebug("Async action callback completed.", {
     callbackUrl,
-    leadId: getLeadId(lead),
+    leadId,
     status: response.status,
   });
 }
@@ -480,10 +537,10 @@ function createAsyncActionHandler() {
 
     try {
       const callbackUrl = getRequiredCallbackUrl(req.body);
-      const lead = getSubmittedLead(req.body);
-      const flowAttributes = getSubmittedFlowAttributes(req.body);
+      const leadObjects = getSubmittedLeadObjects(req.body);
+      const { lead, flowAttributes } = getFirstLeadObject(leadObjects);
 
-      if (!lead || typeof lead !== "object" || Array.isArray(lead)) {
+      if (!leadObjects.length) {
         throw Object.assign(new Error("lead must be an object."), {
           statusCode: 400,
         });
@@ -499,11 +556,14 @@ function createAsyncActionHandler() {
       res.status(201).json({ status: "accepted" });
 
       queueMicrotask(() => {
+        const payload = buildCallbackPayloadFromLeadObjects(leadObjects);
+
         postAsyncActionCallback({
           callbackUrl,
           token: req.body.token,
           apiCallBackKey: req.body.apiCallBackKey,
-          lead,
+          payload,
+          leadId: getLeadId(lead),
           flowAttributes,
         }).catch((error) => {
           logError(error.message || "Async action callback failed.", {

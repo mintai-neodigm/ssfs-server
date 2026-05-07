@@ -59,6 +59,10 @@ test("openapi document exposes compute score endpoint", () => {
     openApiDocument.paths["/status"].get.responses[200].content["application/json"].schema.$ref,
     "#/components/schemas/serviceStatus",
   );
+  assert.equal(
+    openApiDocument.paths["/getServiceDefinition"].get.responses[200].content["application/json"].schema.$ref,
+    "#/components/schemas/serviceDefinition",
+  );
   assert.ok(openApiDocument.paths["/submitAsyncAction"].post);
   assert.ok(openApiDocument.paths["/v1/computeScore"].post);
   assert.equal(

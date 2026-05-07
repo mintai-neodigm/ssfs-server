@@ -224,7 +224,7 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *             - number
  *         label:
  *           type: string
- *     ServiceDefinition:
+ *     serviceDefinition:
  *       type: object
  *       required:
  *         - serviceName
@@ -368,7 +368,7 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ServiceDefinition'
+ *               $ref: '#/components/schemas/serviceDefinition'
  *             example:
  *               serviceName: Lead Scoring Calculator
  *               description: Calculates composite score based on behavioral and demographic data.
@@ -488,17 +488,23 @@ function createApp() {
 
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
-  app.post("/submitAsyncAction", createScoreHandler({
-    getLead: getSubmittedLead,
-    successStatusCode: 201,
-    successStatus: "accepted",
-  }));
+  app.post(
+    "/submitAsyncAction",
+    createScoreHandler({
+      getLead: getSubmittedLead,
+      successStatusCode: 201,
+      successStatus: "accepted",
+    }),
+  );
 
-  app.post("/v1/computeScore", createScoreHandler({
-    getLead: (body) => body.lead,
-    successStatusCode: 200,
-    successStatus: "success",
-  }));
+  app.post(
+    "/v1/computeScore",
+    createScoreHandler({
+      getLead: (body) => body.lead,
+      successStatusCode: 200,
+      successStatus: "success",
+    }),
+  );
 
   app.use((req, res) => {
     res.status(404).json({ status: "error", message: "Not found." });

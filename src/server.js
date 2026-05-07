@@ -143,7 +143,6 @@ function createOpenApiDocument() {
           url: SERVER_URL,
         },
       ],
-      "x-providerName": PROVIDER_NAME,
       security: [
         {
           apiKeyAuth: [],

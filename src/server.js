@@ -40,24 +40,24 @@ const serviceDefinition = {
   enableSplitPaths: false,
   timeout: 10,
   invocationPayloadDef: {
-    // flowAttributes: [
-    //   {
-    //     apiName: "scoringModel",
-    //     dataType: "string",
-    //     required: false,
-    //     i18n: {
-    //       en_US: {
-    //         displayName: "Scoring Model",
-    //         description: "Scoring model label shown in Marketo activity data.",
-    //       },
-    //       ko_KR: {
-    //         displayName: "스코어링 모델",
-    //         description:
-    //           "Marketo 활동 데이터에 표시할 스코어링 모델 라벨입니다.",
-    //       },
-    //     },
-    //   },
-    // ],
+    flowAttributes: [
+      {
+        apiName: "scoringModel",
+        dataType: "string",
+        required: false,
+        i18n: {
+          en_US: {
+            name: "Scoring Model",
+            description: "Scoring model label shown in Marketo activity data.",
+          },
+          ko_KR: {
+            name: "스코어링 모델",
+            description:
+              "Marketo 활동 데이터에 표시할 스코어링 모델 라벨입니다.",
+          },
+        },
+      },
+    ],
     fields: [
       {
         serviceAttribute: "behavioralScore",
@@ -90,11 +90,11 @@ const serviceDefinition = {
         apiName: "calculationStatus",
         i18n: {
           en_US: {
-            displayName: "Calculation Status",
+            name: "Calculation Status",
             description: "Status of the score calculation.",
           },
           ko_KR: {
-            displayName: "계산 상태",
+            name: "계산 상태",
             description: "점수 계산 처리 상태입니다.",
           },
         },
@@ -104,11 +104,11 @@ const serviceDefinition = {
         apiName: "compositeScore",
         i18n: {
           en_US: {
-            displayName: "Composite Score",
+            name: "Composite Score",
             description: "Composite score included in activity data.",
           },
           ko_KR: {
-            displayName: "복합 점수",
+            name: "복합 점수",
             description: "활동 데이터에 포함되는 복합 점수입니다.",
           },
         },

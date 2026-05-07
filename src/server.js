@@ -16,6 +16,7 @@ const SUPPORT_CONTACT =
   process.env.MARKETO_SUPPORT_CONTACT || "support@example.com";
 const SERVER_URL = process.env.SERVER_URL || "/";
 const DEBUG_SSFS = process.env.DEBUG_SSFS === "true";
+const MARKETO_MUNCHKIN_ID = process.env.MARKETO_MUNCHKIN_ID || "";
 
 const serviceDefinition = {
   apiName: "leadScoringCalculator",
@@ -384,6 +385,30 @@ function getRequiredCallbackUrl(body) {
   return body.callbackUrl;
 }
 
+function getSubmittedMunchkinId(body) {
+  return (
+    MARKETO_MUNCHKIN_ID ||
+    body.munchkinId ||
+    body.context?.subscription?.munchkinId ||
+    extractMunchkinIdFromToken(body.token) ||
+    ""
+  );
+}
+
+function extractMunchkinIdFromToken(token) {
+  if (typeof token !== "string") {
+    return "";
+  }
+
+  const decodedTokenPrefix = Buffer.from(token, "base64")
+    .toString("utf8")
+    .slice(0, 11);
+
+  return /^[0-9]{3}-[A-Z0-9]{3}-[0-9]{3}$/.test(decodedTokenPrefix)
+    ? decodedTokenPrefix
+    : "";
+}
+
 function sendErrorResponse(res, error) {
   res.status(error.statusCode || 500).json({
     status: "error",
@@ -433,8 +458,9 @@ function buildCallbackObject(lead, flowAttributes = {}) {
   };
 }
 
-function buildCallbackPayloadFromLeadObjects(leadObjects) {
+function buildCallbackPayloadFromLeadObjects(leadObjects, munchkinId) {
   return {
+    munchkinId,
     objectData: leadObjects.map(({ lead, flowAttributes }) =>
       buildCallbackObject(lead, flowAttributes),
     ),
@@ -556,7 +582,10 @@ function createAsyncActionHandler() {
       res.status(201).json({ status: "accepted" });
 
       queueMicrotask(() => {
-        const payload = buildCallbackPayloadFromLeadObjects(leadObjects);
+        const payload = buildCallbackPayloadFromLeadObjects(
+          leadObjects,
+          getSubmittedMunchkinId(req.body),
+        );
 
         postAsyncActionCallback({
           callbackUrl,

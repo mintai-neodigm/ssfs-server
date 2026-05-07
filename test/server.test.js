@@ -229,6 +229,7 @@ test("accepts Marketo submitAsyncAction requests over http", async (t) => {
       "content-type": "application/json",
     },
     body: JSON.stringify({
+      munchkinId: "123-ABC-456",
       callbackUrl,
       token: "test-callback-token",
       flowStepContext: {
@@ -254,6 +255,7 @@ test("accepts Marketo submitAsyncAction requests over http", async (t) => {
   assert.equal(callbackRequest.headers["x-callback-token"], "test-callback-token");
   assert.ok(callbackRequest.headers["x-request-id"]);
   assert.deepEqual(callbackRequest.payload, {
+    munchkinId: "123-ABC-456",
     objectData: [
       {
         leadData: {
@@ -307,6 +309,7 @@ test("accepts Marketo leadContext payloads over http", async (t) => {
 
   const callbackRequest = await callback;
   assert.deepEqual(callbackRequest.payload, {
+    munchkinId: "",
     objectData: [
       {
         leadData: {
@@ -336,6 +339,7 @@ test("accepts Marketo objectData payloads over http", async (t) => {
     },
     body: JSON.stringify({
       token: "object-data-token",
+      munchkinId: "734-MIC-484",
       apiCallBackKey: "object-data-key",
       campaignId: 3170,
       callbackUrl,
@@ -369,6 +373,7 @@ test("accepts Marketo objectData payloads over http", async (t) => {
   assert.equal(callbackRequest.headers["x-api-key"], "object-data-key");
   assert.ok(callbackRequest.headers["x-request-id"]);
   assert.deepEqual(callbackRequest.payload, {
+    munchkinId: "734-MIC-484",
     objectData: [
       {
         leadData: {
@@ -386,4 +391,41 @@ test("accepts Marketo objectData payloads over http", async (t) => {
       },
     ],
   });
+});
+
+test("extracts munchkinId from Marketo callback token", async (t) => {
+  const baseUrl = await withTestServer(t);
+  const { callback, callbackUrl } = await withCallbackServer(t);
+  const token = Buffer.from("734-MIC-484-test-token").toString("base64");
+  const response = await fetch(`${baseUrl}/submitAsyncAction`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      token,
+      apiCallBackKey: "object-data-key",
+      campaignId: 3170,
+      callbackUrl,
+      context: {
+        admin: {},
+      },
+      objectData: [
+        {
+          objectType: "lead",
+          objectContext: {
+            behavioralScore: 4,
+            demographicScore: 12,
+            id: 151635,
+          },
+          flowStepContext: {},
+        },
+      ],
+    }),
+  });
+
+  assert.equal(response.status, 201);
+
+  const callbackRequest = await callback;
+  assert.equal(callbackRequest.payload.munchkinId, "734-MIC-484");
 });

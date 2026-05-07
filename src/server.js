@@ -298,7 +298,16 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *           type: string
  *     SubmitAsyncActionRequest:
  *       type: object
+ *       required:
+ *         - callbackUrl
  *       properties:
+ *         token:
+ *           type: string
+ *           description: Token to echo in the X-Callback-Token header when posting callback results.
+ *         callbackUrl:
+ *           type: string
+ *           format: uri
+ *           description: Marketo callback URL that receives async action results.
  *         lead:
  *           $ref: '#/components/schemas/LeadScoreInput'
  *         leads:
@@ -317,6 +326,33 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *         data:
  *           type: object
  *           properties:
+ *             compositeScore:
+ *               type: number
+ *               example: 20.9
+ *     SubmitAsyncActionCallback:
+ *       type: object
+ *       required:
+ *         - leadData
+ *         - activityData
+ *       properties:
+ *         leadData:
+ *           type: object
+ *           required:
+ *             - id
+ *             - compositeScore
+ *           properties:
+ *             id:
+ *               type: string
+ *               example: "12345"
+ *             compositeScore:
+ *               type: number
+ *               example: 20.9
+ *         activityData:
+ *           type: object
+ *           properties:
+ *             success:
+ *               type: boolean
+ *               example: true
  *             compositeScore:
  *               type: number
  *               example: 20.9
@@ -424,6 +460,34 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *     callbacks:
+ *       actionComplete:
+ *         '{$request.body#/callbackUrl}':
+ *           post:
+ *             summary: Submit async action result callback
+ *             operationId: submitAsyncActionCallback
+ *             parameters:
+ *               - name: X-Callback-Token
+ *                 in: header
+ *                 required: true
+ *                 schema:
+ *                   type: string
+ *             requestBody:
+ *               required: true
+ *               content:
+ *                 application/json:
+ *                   schema:
+ *                     $ref: '#/components/schemas/SubmitAsyncActionCallback'
+ *                   example:
+ *                     leadData:
+ *                       id: "12345"
+ *                       compositeScore: 20.9
+ *                     activityData:
+ *                       success: true
+ *                       compositeScore: 20.9
+ *             responses:
+ *               200:
+ *                 description: Callback received
  *
  * /v1/computeScore:
  *   post:

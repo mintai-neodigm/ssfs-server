@@ -9,6 +9,8 @@ const {
   serviceDefinition,
 } = require("../src/server");
 
+const expectedServerUrl = process.env.SERVER_URL || "/";
+
 async function withTestServer(t) {
   const server = createApp().listen(0);
 
@@ -52,7 +54,7 @@ test("openapi document exposes compute score endpoint", () => {
   );
   assert.equal(openApiDocument.info["x-schemaVersion"], packageJson.version);
   assert.equal(openApiDocument.info["x-supportContact"], "support@example.com");
-  assert.deepEqual(openApiDocument.servers, [{ url: "/" }]);
+  assert.deepEqual(openApiDocument.servers, [{ url: expectedServerUrl }]);
   assert.ok(openApiDocument.paths["/openapi.json"].get);
   assert.ok(openApiDocument.paths["/status"].get);
   assert.equal(
@@ -64,6 +66,12 @@ test("openapi document exposes compute score endpoint", () => {
     "#/components/schemas/serviceDefinition",
   );
   assert.ok(openApiDocument.paths["/submitAsyncAction"].post);
+  assert.ok(openApiDocument.paths["/submitAsyncAction"].post.callbacks);
+  assert.ok(
+    openApiDocument.paths["/submitAsyncAction"].post.callbacks.actionComplete[
+      "{$request.body#/callbackUrl}"
+    ].post,
+  );
   assert.ok(openApiDocument.paths["/v1/computeScore"].post);
   assert.equal(
     openApiDocument.components.securitySchemes.apiKeyAuth.name,
@@ -105,7 +113,7 @@ test("serves Marketo-required OpenAPI info fields over http", async (t) => {
   assert.equal(body.info["x-providerName"], "Marketo SSFS Lead Scoring Calculator");
   assert.equal(body.info["x-schemaVersion"], packageJson.version);
   assert.equal(body.info["x-supportContact"], "support@example.com");
-  assert.deepEqual(body.servers, [{ url: "/" }]);
+  assert.deepEqual(body.servers, [{ url: expectedServerUrl }]);
 });
 
 test("serves Marketo-required status endpoint over http", async (t) => {

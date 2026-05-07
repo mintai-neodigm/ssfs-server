@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const http = require("node:http");
 const test = require("node:test");
 const packageJson = require("../package.json");
 
@@ -28,6 +29,60 @@ async function withTestServer(t) {
 
   const { port } = server.address();
   return `http://127.0.0.1:${port}`;
+}
+
+async function withCallbackServer(t) {
+  let resolveCallback;
+  let rejectCallback;
+  const callback = new Promise((resolve, reject) => {
+    resolveCallback = resolve;
+    rejectCallback = reject;
+  });
+
+  const server = http.createServer((req, res) => {
+    let body = "";
+
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      try {
+        const payload = body ? JSON.parse(body) : {};
+        resolveCallback({
+          headers: req.headers,
+          method: req.method,
+          payload,
+          url: req.url,
+        });
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ status: "received" }));
+      } catch (error) {
+        rejectCallback(error);
+        res.writeHead(400, { "content-type": "application/json" });
+        res.end(JSON.stringify({ status: "error" }));
+      }
+    });
+  });
+
+  server.listen(0);
+  await new Promise((resolve) => server.once("listening", resolve));
+  t.after(() => new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  }));
+
+  const { port } = server.address();
+  return {
+    callback,
+    callbackUrl: `http://127.0.0.1:${port}/callback`,
+  };
 }
 
 test("service definition exposes expected inputs and outputs", () => {
@@ -167,12 +222,15 @@ test("serves Marketo-required status endpoint over http", async (t) => {
 
 test("accepts Marketo submitAsyncAction requests over http", async (t) => {
   const baseUrl = await withTestServer(t);
+  const { callback, callbackUrl } = await withCallbackServer(t);
   const response = await fetch(`${baseUrl}/submitAsyncAction`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
     },
     body: JSON.stringify({
+      callbackUrl,
+      token: "test-callback-token",
       lead: {
         id: "12345",
         behavioralScore: 3,
@@ -185,7 +243,19 @@ test("accepts Marketo submitAsyncAction requests over http", async (t) => {
   assert.equal(response.status, 201);
   assert.deepEqual(body, {
     status: "accepted",
-    data: {
+  });
+
+  const callbackRequest = await callback;
+  assert.equal(callbackRequest.method, "POST");
+  assert.equal(callbackRequest.url, "/callback");
+  assert.equal(callbackRequest.headers["x-callback-token"], "test-callback-token");
+  assert.deepEqual(callbackRequest.payload, {
+    leadData: {
+      id: "12345",
+      compositeScore: 20.9,
+    },
+    activityData: {
+      calculationStatus: "completed",
       compositeScore: 20.9,
     },
   });

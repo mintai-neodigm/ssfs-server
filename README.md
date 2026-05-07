@@ -25,6 +25,13 @@ $env:SERVER_URL="http://localhost:3000"
 npm run dev
 ```
 
+디버그 로그가 필요하면 아래 환경변수를 추가합니다.
+
+```powershell
+$env:DEBUG_SSFS="true"
+npm test
+```
+
 ## 점수 계산 요청
 
 ```powershell
@@ -42,6 +49,30 @@ Invoke-RestMethod `
 {
   "status": "success",
   "data": {
+    "compositeScore": 20.9
+  }
+}
+```
+
+## Marketo Async Action 흐름
+
+`POST /submitAsyncAction`은 Marketo SSFS용 비동기 실행 엔드포인트입니다.
+
+1. Marketo가 `callbackUrl`, `token`, lead 데이터를 함께 전송합니다.
+2. 서버는 요청을 접수하면 즉시 `201 Accepted`를 반환합니다.
+3. 서버는 점수를 계산한 뒤 `callbackUrl`로 결과를 `POST`합니다.
+4. callback 요청에는 `X-Callback-Token` 헤더로 Marketo가 보낸 token을 다시 전달합니다.
+
+callback payload 예시:
+
+```json
+{
+  "leadData": {
+    "id": "12345",
+    "compositeScore": 20.9
+  },
+  "activityData": {
+    "calculationStatus": "completed",
     "compositeScore": 20.9
   }
 }

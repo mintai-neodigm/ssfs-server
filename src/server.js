@@ -15,6 +15,7 @@ const PROVIDER_NAME =
 const SUPPORT_CONTACT =
   process.env.MARKETO_SUPPORT_CONTACT || "support@example.com";
 const SERVER_URL = process.env.SERVER_URL || "/";
+const DEBUG_SSFS = process.env.DEBUG_SSFS === "true";
 
 const serviceDefinition = {
   apiName: "leadScoringCalculator",
@@ -255,6 +256,40 @@ function getSubmittedLead(body) {
   return Array.isArray(body.leads) ? body.leads[0] : body.lead;
 }
 
+function getLeadId(lead) {
+  return lead && lead.id ? String(lead.id) : "unknown";
+}
+
+function logDebug(message, details = {}) {
+  if (!DEBUG_SSFS) {
+    return;
+  }
+
+  console.log(JSON.stringify({
+    level: "debug",
+    message,
+    ...details,
+  }));
+}
+
+function logError(message, details = {}) {
+  console.error(JSON.stringify({
+    level: "error",
+    message,
+    ...details,
+  }));
+}
+
+function getRequiredCallbackUrl(body) {
+  if (typeof body.callbackUrl !== "string" || !body.callbackUrl.trim()) {
+    throw Object.assign(new Error("callbackUrl is required."), {
+      statusCode: 400,
+    });
+  }
+
+  return body.callbackUrl;
+}
+
 function sendErrorResponse(res, error) {
   res.status(error.statusCode || 500).json({
     status: "error",
@@ -275,6 +310,94 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
       res.status(successStatusCode).json({
         status: successStatus,
         data: { compositeScore },
+      });
+    } catch (error) {
+      sendErrorResponse(res, error);
+    }
+  };
+}
+
+function buildCallbackPayload(lead, compositeScore) {
+  return {
+    leadData: {
+      id: String(lead.id || ""),
+      compositeScore,
+    },
+    activityData: {
+      calculationStatus: "completed",
+      compositeScore,
+    },
+  };
+}
+
+async function postAsyncActionCallback({ callbackUrl, token, lead }) {
+  const compositeScore = computeCompositeScore(lead);
+  const headers = {
+    "content-type": "application/json",
+  };
+
+  if (token) {
+    headers["X-Callback-Token"] = token;
+  }
+
+  logDebug("Posting async action callback.", {
+    callbackUrl,
+    leadId: getLeadId(lead),
+    compositeScore,
+  });
+
+  const response = await fetch(callbackUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(buildCallbackPayload(lead, compositeScore)),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Callback request failed with status ${response.status}.`);
+  }
+
+  logDebug("Async action callback completed.", {
+    callbackUrl,
+    leadId: getLeadId(lead),
+    status: response.status,
+  });
+}
+
+function createAsyncActionHandler() {
+  return (req, res) => {
+    // if (!isAuthorized(req)) {
+    //   res.status(401).json({ status: "error", message: "Unauthorized request." });
+    //   return;
+    // }
+
+    try {
+      const callbackUrl = getRequiredCallbackUrl(req.body);
+      const lead = getSubmittedLead(req.body);
+
+      if (!lead || typeof lead !== "object" || Array.isArray(lead)) {
+        throw Object.assign(new Error("lead must be an object."), {
+          statusCode: 400,
+        });
+      }
+
+      logDebug("Accepted async action request.", {
+        callbackUrl,
+        leadId: getLeadId(lead),
+      });
+
+      res.status(201).json({ status: "accepted" });
+
+      queueMicrotask(() => {
+        postAsyncActionCallback({
+          callbackUrl,
+          token: req.body.token,
+          lead,
+        }).catch((error) => {
+          logError(error.message || "Async action callback failed.", {
+            callbackUrl,
+            leadId: getLeadId(lead),
+          });
+        });
       });
     } catch (error) {
       sendErrorResponse(res, error);
@@ -433,12 +556,6 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *           type: string
  *           enum:
  *             - accepted
- *         data:
- *           type: object
- *           properties:
- *             compositeScore:
- *               type: number
- *               example: 20.9
  *     SubmitAsyncActionCallback:
  *       type: object
  *       required:
@@ -532,6 +649,8 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *           schema:
  *             $ref: '#/components/schemas/SubmitAsyncActionRequest'
  *           example:
+ *             callbackUrl: https://example.com/marketo/callback
+ *             token: callback-token
  *             lead:
  *               id: "12345"
  *               behavioralScore: 3
@@ -545,8 +664,6 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *               $ref: '#/components/schemas/SubmitAsyncActionResponse'
  *             example:
  *               status: accepted
- *               data:
- *                 compositeScore: 20.9
  *       400:
  *         description: Invalid request payload
  *         content:
@@ -649,11 +766,7 @@ function createApp() {
 
   app.post(
     "/submitAsyncAction",
-    createScoreHandler({
-      getLead: getSubmittedLead,
-      successStatusCode: 201,
-      successStatus: "accepted",
-    }),
+    createAsyncActionHandler(),
   );
 
   app.post(

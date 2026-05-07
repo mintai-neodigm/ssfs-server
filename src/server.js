@@ -253,7 +253,66 @@ function computeCompositeScore(lead) {
 }
 
 function getSubmittedLead(body) {
-  return Array.isArray(body.leads) ? body.leads[0] : body.lead;
+  if (body.lead && typeof body.lead === "object") {
+    return body.lead;
+  }
+
+  if (Array.isArray(body.leads) && body.leads[0]) {
+    return body.leads[0];
+  }
+
+  if (body.leadContext && typeof body.leadContext === "object") {
+    return {
+      id: body.leadContext.id,
+      ...(body.leadContext.fields || body.leadContext),
+    };
+  }
+
+  if (Array.isArray(body.leadContexts) && body.leadContexts[0]) {
+    return {
+      id: body.leadContexts[0].id,
+      ...(body.leadContexts[0].fields || body.leadContexts[0]),
+    };
+  }
+
+  const leadObjectData = getSubmittedLeadObjectData(body);
+  if (leadObjectData) {
+    return leadObjectData.objectContext;
+  }
+
+  return undefined;
+}
+
+function getSubmittedLeadObjectData(body) {
+  if (!Array.isArray(body.objectData)) {
+    return undefined;
+  }
+
+  return body.objectData.find(
+    (item) =>
+      item &&
+      item.objectType === "lead" &&
+      item.objectContext &&
+      typeof item.objectContext === "object",
+  );
+}
+
+function getSubmittedFlowAttributes(body) {
+  const leadObjectData = getSubmittedLeadObjectData(body);
+
+  return {
+    scoringModel:
+      body.flowStepContext?.scoringModel ||
+      body.flowStepContext?.attributes?.scoringModel ||
+      body.flowAttributes?.scoringModel ||
+      leadObjectData?.flowStepContext?.scoringModel ||
+      body.scoringModel ||
+      "",
+  };
+}
+
+function getPayloadKeys(body) {
+  return body && typeof body === "object" ? Object.keys(body) : [];
 }
 
 function getLeadId(lead) {
@@ -265,19 +324,34 @@ function logDebug(message, details = {}) {
     return;
   }
 
-  console.log(JSON.stringify({
-    level: "debug",
-    message,
-    ...details,
-  }));
+  console.log(safeStringifyLog("debug", message, details));
 }
 
 function logError(message, details = {}) {
-  console.error(JSON.stringify({
-    level: "error",
-    message,
-    ...details,
-  }));
+  console.error(safeStringifyLog("error", message, details));
+}
+
+function safeStringifyLog(level, message, details) {
+  const seen = new WeakSet();
+
+  return JSON.stringify(
+    {
+      level,
+      message,
+      ...details,
+    },
+    (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) {
+          return "[Circular]";
+        }
+
+        seen.add(value);
+      }
+
+      return value;
+    },
+  );
 }
 
 function getRequiredCallbackUrl(body) {
@@ -307,6 +381,9 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
     try {
       const compositeScore = computeCompositeScore(getLead(req.body));
 
+      logDebug("Handling synchronous score request.", {
+        body: req.body,
+      });
       res.status(successStatusCode).json({
         status: successStatus,
         data: { compositeScore },
@@ -317,20 +394,34 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
   };
 }
 
-function buildCallbackPayload(lead, compositeScore) {
+function buildCallbackPayload(lead, compositeScore, flowAttributes = {}) {
   return {
-    leadData: {
-      id: String(lead.id || ""),
-      compositeScore,
-    },
-    activityData: {
-      calculationStatus: "completed",
-      compositeScore,
-    },
+    objectData: [
+      {
+        leadData: {
+          id: String(lead.id || ""),
+          compositeScore,
+        },
+        activityData: {
+          success: true,
+          errorCode: null,
+          reason: null,
+          calculationStatus: "completed",
+          scoringModel: flowAttributes.scoringModel || "",
+          compositeScore,
+        },
+      },
+    ],
   };
 }
 
-async function postAsyncActionCallback({ callbackUrl, token, lead }) {
+async function postAsyncActionCallback({
+  callbackUrl,
+  token,
+  apiCallBackKey,
+  lead,
+  flowAttributes,
+}) {
   const compositeScore = computeCompositeScore(lead);
   const headers = {
     "content-type": "application/json",
@@ -340,16 +431,33 @@ async function postAsyncActionCallback({ callbackUrl, token, lead }) {
     headers["X-Callback-Token"] = token;
   }
 
+  if (apiCallBackKey) {
+    headers["X-Api-Key"] = apiCallBackKey;
+  }
+
+  headers["X-Request-Id"] = `${getLeadId(lead)}-${Date.now()}`;
+
+  if (process.env.ADOBE_ACCESS_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.ADOBE_ACCESS_TOKEN}`;
+  }
+
+  if (process.env.ADOBE_IMS_ORG_ID) {
+    headers["x-gw-ims-org-id"] = process.env.ADOBE_IMS_ORG_ID;
+  }
+
   logDebug("Posting async action callback.", {
     callbackUrl,
     leadId: getLeadId(lead),
+    flowAttributes,
     compositeScore,
   });
 
   const response = await fetch(callbackUrl, {
     method: "POST",
     headers,
-    body: JSON.stringify(buildCallbackPayload(lead, compositeScore)),
+    body: JSON.stringify(
+      buildCallbackPayload(lead, compositeScore, flowAttributes),
+    ),
   });
 
   if (!response.ok) {
@@ -373,6 +481,7 @@ function createAsyncActionHandler() {
     try {
       const callbackUrl = getRequiredCallbackUrl(req.body);
       const lead = getSubmittedLead(req.body);
+      const flowAttributes = getSubmittedFlowAttributes(req.body);
 
       if (!lead || typeof lead !== "object" || Array.isArray(lead)) {
         throw Object.assign(new Error("lead must be an object."), {
@@ -383,6 +492,8 @@ function createAsyncActionHandler() {
       logDebug("Accepted async action request.", {
         callbackUrl,
         leadId: getLeadId(lead),
+        payloadKeys: getPayloadKeys(req.body),
+        flowAttributes,
       });
 
       res.status(201).json({ status: "accepted" });
@@ -391,11 +502,14 @@ function createAsyncActionHandler() {
         postAsyncActionCallback({
           callbackUrl,
           token: req.body.token,
+          apiCallBackKey: req.body.apiCallBackKey,
           lead,
+          flowAttributes,
         }).catch((error) => {
           logError(error.message || "Async action callback failed.", {
             callbackUrl,
             leadId: getLeadId(lead),
+            payloadKeys: getPayloadKeys(req.body),
           });
         });
       });
@@ -559,30 +673,51 @@ function createAsyncActionHandler() {
  *     SubmitAsyncActionCallback:
  *       type: object
  *       required:
- *         - leadData
- *         - activityData
+ *         - objectData
  *       properties:
- *         leadData:
- *           type: object
- *           required:
- *             - id
- *             - compositeScore
- *           properties:
- *             id:
- *               type: string
- *               example: "12345"
- *             compositeScore:
- *               type: number
- *               example: 20.9
- *         activityData:
- *           type: object
- *           properties:
- *             calculationStatus:
- *               type: string
- *               example: completed
- *             compositeScore:
- *               type: number
- *               example: 20.9
+ *         objectData:
+ *           type: array
+ *           items:
+ *             type: object
+ *             required:
+ *               - leadData
+ *               - activityData
+ *             properties:
+ *               leadData:
+ *                 type: object
+ *                 required:
+ *                   - id
+ *                   - compositeScore
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                     example: "12345"
+ *                   compositeScore:
+ *                     type: number
+ *                     example: 20.9
+ *               activityData:
+ *                 type: object
+ *                 properties:
+ *                   success:
+ *                     type: boolean
+ *                     example: true
+ *                   errorCode:
+ *                     nullable: true
+ *                     type: string
+ *                     example: null
+ *                   reason:
+ *                     nullable: true
+ *                     type: string
+ *                     example: null
+ *                   calculationStatus:
+ *                     type: string
+ *                     example: completed
+ *                   scoringModel:
+ *                     type: string
+ *                     example: weighted-composite-v1
+ *                   compositeScore:
+ *                     type: number
+ *                     example: 20.9
  */
 
 /**
@@ -695,12 +830,17 @@ function createAsyncActionHandler() {
  *                   schema:
  *                     $ref: '#/components/schemas/SubmitAsyncActionCallback'
  *                   example:
- *                     leadData:
- *                       id: "12345"
- *                       compositeScore: 20.9
- *                     activityData:
- *                       calculationStatus: completed
- *                       compositeScore: 20.9
+ *                     objectData:
+ *                       - leadData:
+ *                           id: "12345"
+ *                           compositeScore: 20.9
+ *                         activityData:
+ *                           success: true
+ *                           errorCode: null
+ *                           reason: null
+ *                           calculationStatus: completed
+ *                           scoringModel: weighted-composite-v1
+ *                           compositeScore: 20.9
  *             responses:
  *               200:
  *                 description: Callback received
@@ -764,10 +904,7 @@ function createApp() {
 
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
-  app.post(
-    "/submitAsyncAction",
-    createAsyncActionHandler(),
-  );
+  app.post("/submitAsyncAction", createAsyncActionHandler());
 
   app.post(
     "/v1/computeScore",

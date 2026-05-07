@@ -67,14 +67,22 @@ callback payload 예시:
 
 ```json
 {
-  "leadData": {
-    "id": "12345",
-    "compositeScore": 20.9
-  },
-  "activityData": {
-    "calculationStatus": "completed",
-    "compositeScore": 20.9
-  }
+  "objectData": [
+    {
+      "leadData": {
+        "id": "12345",
+        "compositeScore": 20.9
+      },
+      "activityData": {
+        "success": true,
+        "errorCode": null,
+        "reason": null,
+        "calculationStatus": "completed",
+        "scoringModel": "weighted-composite-v1",
+        "compositeScore": 20.9
+      }
+    }
+  ]
 }
 ```
 

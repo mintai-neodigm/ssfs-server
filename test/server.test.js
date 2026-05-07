@@ -231,6 +231,9 @@ test("accepts Marketo submitAsyncAction requests over http", async (t) => {
     body: JSON.stringify({
       callbackUrl,
       token: "test-callback-token",
+      flowStepContext: {
+        scoringModel: "weighted-composite-v1",
+      },
       lead: {
         id: "12345",
         behavioralScore: 3,
@@ -249,14 +252,138 @@ test("accepts Marketo submitAsyncAction requests over http", async (t) => {
   assert.equal(callbackRequest.method, "POST");
   assert.equal(callbackRequest.url, "/callback");
   assert.equal(callbackRequest.headers["x-callback-token"], "test-callback-token");
+  assert.ok(callbackRequest.headers["x-request-id"]);
   assert.deepEqual(callbackRequest.payload, {
-    leadData: {
-      id: "12345",
-      compositeScore: 20.9,
+    objectData: [
+      {
+        leadData: {
+          id: "12345",
+          compositeScore: 20.9,
+        },
+        activityData: {
+          success: true,
+          errorCode: null,
+          reason: null,
+          calculationStatus: "completed",
+          scoringModel: "weighted-composite-v1",
+          compositeScore: 20.9,
+        },
+      },
+    ],
+  });
+});
+
+test("accepts Marketo leadContext payloads over http", async (t) => {
+  const baseUrl = await withTestServer(t);
+  const { callback, callbackUrl } = await withCallbackServer(t);
+  const response = await fetch(`${baseUrl}/submitAsyncAction`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
     },
-    activityData: {
-      calculationStatus: "completed",
-      compositeScore: 20.9,
+    body: JSON.stringify({
+      callbackUrl,
+      token: "test-callback-token",
+      flowStepContext: {
+        attributes: {
+          scoringModel: "lead-context-model",
+        },
+      },
+      leadContext: {
+        id: "abc-123",
+        fields: {
+          behavioralScore: 6,
+          demographicScore: 10,
+        },
+      },
+    }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(body, {
+    status: "accepted",
+  });
+
+  const callbackRequest = await callback;
+  assert.deepEqual(callbackRequest.payload, {
+    objectData: [
+      {
+        leadData: {
+          id: "abc-123",
+          compositeScore: 11.8,
+        },
+        activityData: {
+          success: true,
+          errorCode: null,
+          reason: null,
+          calculationStatus: "completed",
+          scoringModel: "lead-context-model",
+          compositeScore: 11.8,
+        },
+      },
+    ],
+  });
+});
+
+test("accepts Marketo objectData payloads over http", async (t) => {
+  const baseUrl = await withTestServer(t);
+  const { callback, callbackUrl } = await withCallbackServer(t);
+  const response = await fetch(`${baseUrl}/submitAsyncAction`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
     },
+    body: JSON.stringify({
+      token: "object-data-token",
+      apiCallBackKey: "object-data-key",
+      campaignId: 3170,
+      callbackUrl,
+      context: {
+        admin: {},
+      },
+      objectData: [
+        {
+          objectType: "lead",
+          objectContext: {
+            behavioralScore: 4,
+            demographicScore: 12,
+            id: 151635,
+          },
+          flowStepContext: {
+            scoringModel: "object-data-model",
+          },
+        },
+      ],
+    }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(body, {
+    status: "accepted",
+  });
+
+  const callbackRequest = await callback;
+  assert.equal(callbackRequest.headers["x-callback-token"], "object-data-token");
+  assert.equal(callbackRequest.headers["x-api-key"], "object-data-key");
+  assert.ok(callbackRequest.headers["x-request-id"]);
+  assert.deepEqual(callbackRequest.payload, {
+    objectData: [
+      {
+        leadData: {
+          id: "151635",
+          compositeScore: 13.2,
+        },
+        activityData: {
+          success: true,
+          errorCode: null,
+          reason: null,
+          calculationStatus: "completed",
+          scoringModel: "object-data-model",
+          compositeScore: 13.2,
+        },
+      },
+    ],
   });
 });

@@ -73,10 +73,6 @@ test("service definition exposes expected inputs and outputs", () => {
 test("openapi document exposes compute score endpoint", () => {
   assert.equal(openApiDocument.openapi, "3.0.3");
   assert.equal(
-    openApiDocument["x-providerName"],
-    "Marketo SSFS Lead Scoring Calculator",
-  );
-  assert.equal(
     openApiDocument.info["x-providerName"],
     "Marketo SSFS Lead Scoring Calculator",
   );

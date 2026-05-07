@@ -286,14 +286,6 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  * @openapi
  * components:
  *   schemas:
- *     HealthResponse:
- *       type: object
- *       required:
- *         - status
- *       properties:
- *         status:
- *           type: string
- *           example: ok
  *     serviceStatus:
  *       type: object
  *       required:
@@ -489,17 +481,6 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *             schema:
  *               type: object
  *
- * /health:
- *   get:
- *     summary: Health check
- *     responses:
- *       200:
- *         description: Server is healthy
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/serviceStatus'
- *
  * /status:
  *   get:
  *     summary: Marketo service status check
@@ -651,10 +632,6 @@ function createApp() {
   const app = express();
 
   app.use(express.json({ limit: "1mb" }));
-
-  app.get("/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
 
   app.get("/status", (req, res) => {
     res.json({ status: "ok" });

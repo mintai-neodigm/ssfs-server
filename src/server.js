@@ -201,6 +201,14 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *         status:
  *           type: string
  *           example: ok
+ *     serviceStatus:
+ *       type: object
+ *       required:
+ *         - status
+ *       properties:
+ *         status:
+ *           type: string
+ *           example: ok
  *     FieldDefinition:
  *       type: object
  *       required:
@@ -336,7 +344,7 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/HealthResponse'
+ *               $ref: '#/components/schemas/serviceStatus'
  *
  * /status:
  *   get:
@@ -348,7 +356,7 @@ function createScoreHandler({ getLead, successStatusCode, successStatus }) {
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/HealthResponse'
+ *               $ref: '#/components/schemas/serviceStatus'
  *
  * /getServiceDefinition:
  *   get:

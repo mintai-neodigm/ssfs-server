@@ -55,6 +55,10 @@ test("openapi document exposes compute score endpoint", () => {
   assert.deepEqual(openApiDocument.servers, [{ url: "/" }]);
   assert.ok(openApiDocument.paths["/openapi.json"].get);
   assert.ok(openApiDocument.paths["/status"].get);
+  assert.equal(
+    openApiDocument.paths["/status"].get.responses[200].content["application/json"].schema.$ref,
+    "#/components/schemas/serviceStatus",
+  );
   assert.ok(openApiDocument.paths["/submitAsyncAction"].post);
   assert.ok(openApiDocument.paths["/v1/computeScore"].post);
   assert.equal(

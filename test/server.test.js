@@ -48,6 +48,14 @@ test("service definition exposes expected inputs and outputs", () => {
     serviceDefinition.callbackPayloadDef.fields.map((field) => field.serviceAttribute),
     ["compositeScore"],
   );
+  assert.deepEqual(
+    serviceDefinition.callbackPayloadDef.attributes.map((attribute) => attribute.apiName),
+    ["success", "compositeScore"],
+  );
+  assert.equal(
+    serviceDefinition.callbackPayloadDef.attributes[0].i18n.ko_KR.displayName,
+    "성공 여부",
+  );
   assert.equal(
     serviceDefinition.invocationPayloadDef.flowAttributes[0].i18n.ko_KR.displayName,
     "스코어링 모델",

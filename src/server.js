@@ -85,14 +85,33 @@ const serviceDefinition = {
     ],
     attributes: [
       {
-        serviceAttribute: "success",
+        apiName: "success",
+        i18n: {
+          en_US: {
+            displayName: "Success",
+            description:
+              "Whether the score calculation completed successfully.",
+          },
+          ko_KR: {
+            displayName: "성공 여부",
+            description: "점수 계산이 성공적으로 완료되었는지 여부입니다.",
+          },
+        },
         dataType: "boolean",
-        description: "Whether the score calculation completed successfully.",
       },
       {
-        serviceAttribute: "compositeScore",
+        apiName: "compositeScore",
+        i18n: {
+          en_US: {
+            displayName: "Composite Score",
+            description: "Composite score included in activity data.",
+          },
+          ko_KR: {
+            displayName: "복합 점수",
+            description: "활동 데이터에 포함되는 복합 점수입니다.",
+          },
+        },
         dataType: "float",
-        description: "Composite score included in activity data.",
       },
     ],
   },

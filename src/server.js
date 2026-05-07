@@ -40,24 +40,24 @@ const serviceDefinition = {
   enableSplitPaths: false,
   timeout: 10,
   invocationPayloadDef: {
-    // flowAttributes: [
-    //   {
-    //     apiName: "scoringModel",
-    //     dataType: "string",
-    //     required: false,
-    //     i18n: {
-    //       en_US: {
-    //         displayName: "Scoring Model",
-    //         description: "Scoring model label shown in Marketo activity data.",
-    //       },
-    //       ko_KR: {
-    //         displayName: "스코어링 모델",
-    //         description:
-    //           "Marketo 활동 데이터에 표시할 스코어링 모델 라벨입니다.",
-    //       },
-    //     },
-    //   },
-    // ],
+    flowAttributes: [
+      {
+        apiName: "scoringModel",
+        dataType: "string",
+        required: false,
+        i18n: {
+          en_US: {
+            displayName: "Scoring Model",
+            description: "Scoring model label shown in Marketo activity data.",
+          },
+          ko_KR: {
+            displayName: "스코어링 모델",
+            description:
+              "Marketo 활동 데이터에 표시할 스코어링 모델 라벨입니다.",
+          },
+        },
+      },
+    ],
     fields: [
       {
         serviceAttribute: "behavioralScore",
@@ -340,6 +340,20 @@ function getLeadId(lead) {
   return lead && lead.id ? String(lead.id) : "unknown";
 }
 
+function getCallbackLeadId(lead) {
+  const id = lead?.id;
+
+  if (typeof id === "number" && Number.isInteger(id)) {
+    return id;
+  }
+
+  if (typeof id === "string" && /^[0-9]+$/.test(id)) {
+    return Number(id);
+  }
+
+  return id || "";
+}
+
 function logDebug(message, details = {}) {
   if (!DEBUG_SSFS) {
     return;
@@ -444,7 +458,7 @@ function buildCallbackObject(lead, flowAttributes = {}) {
 
   return {
     leadData: {
-      id: String(lead.id || ""),
+      id: getCallbackLeadId(lead),
       compositeScore,
     },
     activityData: {

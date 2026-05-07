@@ -264,7 +264,7 @@ test("accepts Marketo submitAsyncAction requests over http", async (t) => {
     objectData: [
       {
         leadData: {
-          id: "12345",
+          id: 12345,
           compositeScore: 20.9,
         },
         activityData: {
@@ -382,7 +382,7 @@ test("accepts Marketo objectData payloads over http", async (t) => {
     objectData: [
       {
         leadData: {
-          id: "151635",
+          id: 151635,
           compositeScore: 13.2,
         },
         activityData: {

@@ -650,7 +650,8 @@ function createAsyncActionHandler() {
  *         type:
  *           type: string
  *           enum:
- *             - number
+ *             - score
+ *             - float
  *         label:
  *           type: string
  *     serviceDefinition:
@@ -868,14 +869,14 @@ function createAsyncActionHandler() {
  *               description: Calculates composite score based on behavioral and demographic data.
  *               inputs:
  *                 - name: behavioralScore
- *                   type: number
+ *                   type: score
  *                   label: Behavioral Score
  *                 - name: demographicScore
- *                   type: number
+ *                   type: score
  *                   label: Demographic Score
  *               outputs:
  *                 - name: compositeScore
- *                   type: number
+ *                   type: float
  *                   label: Composite Score
  *
  * /submitAsyncAction:

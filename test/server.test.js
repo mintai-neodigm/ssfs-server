@@ -108,9 +108,12 @@ test("service definition exposes expected inputs and outputs", () => {
   assert.ok(serviceDefinition.callbackPayloadDef);
   assert.deepEqual(
     serviceDefinition.invocationPayloadDef.fields.map(
-      (field) => field.serviceAttribute,
+      (field) => [field.serviceAttribute, field.dataType],
     ),
-    ["behavioralScore", "demographicScore"],
+    [
+      ["behavioralScore", "score"],
+      ["demographicScore", "score"],
+    ],
   );
   assert.deepEqual(
     serviceDefinition.callbackPayloadDef.fields.map(
@@ -134,12 +137,15 @@ test("service definition exposes expected inputs and outputs", () => {
   //   "스코어링 모델",
   // );
   assert.deepEqual(
-    serviceDefinition.inputs.map((input) => input.name),
-    ["behavioralScore", "demographicScore"],
+    serviceDefinition.inputs.map((input) => [input.name, input.type]),
+    [
+      ["behavioralScore", "score"],
+      ["demographicScore", "score"],
+    ],
   );
   assert.deepEqual(
-    serviceDefinition.outputs.map((output) => output.name),
-    ["compositeScore"],
+    serviceDefinition.outputs.map((output) => [output.name, output.type]),
+    [["compositeScore", "float"]],
   );
 });
 

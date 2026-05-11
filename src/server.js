@@ -61,13 +61,13 @@ const serviceDefinition = {
     fields: [
       {
         serviceAttribute: "behavioralScore",
-        dataType: "float",
+        dataType: "score",
         required: true,
         description: "Behavioral score used with a 0.3 weighting.",
       },
       {
         serviceAttribute: "demographicScore",
-        dataType: "float",
+        dataType: "score",
         required: true,
         description:
           "Demographic score added to the weighted behavioral score.",
@@ -117,11 +117,11 @@ const serviceDefinition = {
     ],
   },
   inputs: [
-    { name: "behavioralScore", type: "number", label: "Behavioral Score" },
-    { name: "demographicScore", type: "number", label: "Demographic Score" },
+    { name: "behavioralScore", type: "score", label: "Behavioral Score" },
+    { name: "demographicScore", type: "score", label: "Demographic Score" },
   ],
   outputs: [
-    { name: "compositeScore", type: "number", label: "Composite Score" },
+    { name: "compositeScore", type: "float", label: "Composite Score" },
   ],
 };
 

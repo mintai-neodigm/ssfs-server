@@ -250,7 +250,9 @@ function computeCompositeScore(lead) {
     "demographicScore",
   );
 
-  return behavioralScore * 0.3 + demographicScore;
+  const compositeScore = behavioralScore * 0.3 + demographicScore;
+
+  return Math.round((compositeScore + Number.EPSILON) * 100) / 100;
 }
 
 function getSubmittedLead(body) {

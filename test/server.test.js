@@ -198,6 +198,15 @@ test("accepts numeric strings from form-like integrations", () => {
   assert.equal(score, 5.15);
 });
 
+test("rounds weighted composite score to two decimal places", () => {
+  const score = computeCompositeScore({
+    behavioralScore: 1.111,
+    demographicScore: 2.222,
+  });
+
+  assert.equal(score, 2.56);
+});
+
 test("rejects non-finite score values", () => {
   assert.throws(
     () =>
